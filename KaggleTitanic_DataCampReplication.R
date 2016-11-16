@@ -167,3 +167,67 @@ my_prediction <- predict(my_tree_five, test, type = "class")
 my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_prediction)
 write.csv(my_solution, file = "my_solution.csv", row.names = FALSE)
 
+# my own utility to convert the factor back to its proper numeric value (instead of the label of the level!)
+as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
+
+# Now try writing a function to calculate the accuracy rate on the train dataframe
+calc.accuracy <- function(myprediction, the_answers) {
+  mistakes <- abs(myprediction-the_answers)
+  accuracy <- (length(myprediction)-sum(mistakes))/length(myprediction)
+  return(accuracy)
+}
+
+# calculate accuracy rate of my_tree_five
+my_trainprediction <- predict(my_tree_five, train, type = "class")
+my_testprediction <- predict(my_tree_five, test, type = "class")
+my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainprediction)
+calc.accuracy(my_scoredtrain$Survived, as.numeric.factor(my_scoredtrain$Score))
+# [1] 0.8271605
+
+# calculate accuracy rate of my_tree_four
+my_trainprediction <- predict(my_tree_four, train, type = "class")
+my_testprediction <- predict(my_tree_four, test, type = "class")
+my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainprediction)
+calc.accuracy(my_scoredtrain$Survived, as.numeric.factor(my_scoredtrain$Score))
+# [1] 0.8395062
+
+# create helper function to random sample rows from a dataframe
+randomRows = function(df,n){
+  return(df[sample(nrow(df),n),])
+}
+
+# Now improve the function to calculate the accuracy rate on bootstrap samples from train
+calc.bootstrap.accuracy <- function(myfile,m,n){
+  # myfile should have first column with your prediction and second column with the answer key
+  # pull m bootstrap samples of size n
+  list.of.results <- vector(mode = "numeric", length = m)
+  for (i in 1:m){
+    y <- randomRows(myfile,n)
+    list.of.results[i] <- calc.accuracy(y[,1], y[,2])
+  }
+  print(paste("Iteration results ",list.of.results))
+  bootstrap_accuracy <- mean(list.of.results)
+  print(paste("The bootstrap accuracy (mean) is ", bootstrap_accuracy))
+  return(bootstrap_accuracy)
+}
+
+# calculate bootstrap accuracy rate of my_tree_five
+my_trainprediction <- predict(my_tree_five, train, type = "class")
+my_testprediction <- predict(my_tree_five, test, type = "class")
+my_scoredtrain <- data.frame(Score = as.numeric.factor(my_trainprediction), Survived = as.numeric(train$Survived))
+calc.bootstrap.accuracy(my_scoredtrain,10,300)
+# [1] 0.819
+
+# calculate bootstrap accuracy rate of my_tree_four
+my_trainprediction <- predict(my_tree_four, train, type = "class")
+my_testprediction <- predict(my_tree_four, test, type = "class")
+my_scoredtrain <- data.frame(Score = as.numeric.factor(my_trainprediction), Survived = as.numeric(train$Survived))
+calc.bootstrap.accuracy(my_scoredtrain,10,300)
+# [1] 0.8416667
+
+# calculate bootstrap accuracy rate of my_forest (which should be wildly overfit...)
+my_trainprediction <- predict(my_forest, train, type = "class")
+my_testprediction <- predict(my_forest, test, type = "class")
+my_scoredtrain <- data.frame(Score = as.numeric.factor(my_trainprediction), Survived = as.numeric(train$Survived))
+calc.bootstrap.accuracy(my_scoredtrain,10,300)
+# [1] 0.9386667 Crap!  I thought for sure this performance would be lower.  I guess though that if it is accurate on train then it is accurate on subsets of train...
