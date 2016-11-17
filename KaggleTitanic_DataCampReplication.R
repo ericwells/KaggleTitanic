@@ -1,5 +1,46 @@
 # This is my attempt to replicate my DataCamp solution but on my local machine
 
+# Index of solutions
+# my_forest: just a quick try of a random forest with pretty much default settings.
+# my_tree_two:  DT, Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked
+# my_tree_three: DT, Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked, control = rpart.control(minsplit = 50, cp = 0)
+# my_tree_four: DT, Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size
+# my_tree_five: DT including my new variable "Deck"
+
+# Utilities **************
+
+# my own utility to convert the factor back to its proper numeric value (instead of the label of the level!)
+as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
+
+# Now try writing a function to calculate the accuracy rate on the train dataframe
+calc.accuracy <- function(myprediction, the_answers) {
+  mistakes <- abs(myprediction-the_answers)
+  accuracy <- (length(myprediction)-sum(mistakes))/length(myprediction)
+  return(accuracy)
+}
+
+# Now improve the function to calculate the accuracy rate on bootstrap samples from train
+calc.bootstrap.accuracy <- function(myfile,m,n){
+  # myfile should have first column with your prediction and second column with the answer key
+  # pull m bootstrap samples of size n
+  list.of.results <- vector(mode = "numeric", length = m)
+  for (i in 1:m){
+    y <- randomRows(myfile,n)
+    list.of.results[i] <- calc.accuracy(y[,1], y[,2])
+  }
+  print(paste("Iteration results ",list.of.results))
+  bootstrap_accuracy <- mean(list.of.results)
+  print(paste("The bootstrap accuracy (mean) is ", bootstrap_accuracy))
+  return(bootstrap_accuracy)
+}
+
+# create helper function to random sample rows from a dataframe
+randomRows = function(df,n){
+  return(df[sample(nrow(df),n),])
+}
+
+# end Utilities ***************
+
 # Import the training set: train
 train_url <- "http://s3.amazonaws.com/assets.datacamp.com/course/Kaggle/train.csv"
 train <- read.csv(train_url, header = TRUE)
@@ -14,6 +55,8 @@ test
 
 str(train)
 str(test)
+
+# Data Exploration ***************
 
 # Survival rates in absolute numbers
 table(train$Survived)
@@ -35,6 +78,10 @@ train$Child[train$Age >= 18] <- 0
 # Two-way comparison
 prop.table(table(train$Child,train$Survived),1)
 
+# end Data Exploration ****************
+
+# Variable Generation ***************
+
 # Copy of test
 test_one <- test
 
@@ -43,6 +90,9 @@ test_one$Survived <- 0
 
 # Set Survived to 1 if Sex equals "female" (this is basically the AllMenDie model...)
 test_one$Survived[test_one$Sex=="female"] <- 1
+
+
+# end Variable Generation ***************
 
 # Load in the R package
 library("rpart")
@@ -62,24 +112,18 @@ library("rpart.plot")
 #install.packages('RColorBrewer')
 library("RColorBrewer")
 
-
 # Time to plot your fancy tree
 fancyRpartPlot(my_tree_two)
 
 # Make predictions on the test set
 my_prediction <- predict(my_tree_two, newdata = test, type = "class")
 
-# Finish the data.frame() call
+# Build output in Kaggle format
 my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_prediction)
-
-# Use nrow() on my_solution
 nrow(my_solution)
-
-# Finish the write.csv() call
 write.csv(my_solution, file = "my_solution.csv", row.names = FALSE)
 
 # make the tree bigger
-
 my_tree_three <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,data = train, method = "class", control = rpart.control(minsplit = 50, cp = 0))
 
 # Visualize my_tree_three
@@ -89,12 +133,11 @@ fancyRpartPlot(my_tree_three)
 train_two <- train
 train_two$family_size <- train_two$SibSp + train_two$Parch + 1
 
-# Finish the command
+# New DT including new variable
 my_tree_four <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size, data = train_two, method = "class")
 
 # Visualize your new decision tree
 fancyRpartPlot(my_tree_four)
-
 
 
 test$Survived <- NA
@@ -167,15 +210,7 @@ my_prediction <- predict(my_tree_five, test, type = "class")
 my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_prediction)
 write.csv(my_solution, file = "my_solution.csv", row.names = FALSE)
 
-# my own utility to convert the factor back to its proper numeric value (instead of the label of the level!)
-as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
 
-# Now try writing a function to calculate the accuracy rate on the train dataframe
-calc.accuracy <- function(myprediction, the_answers) {
-  mistakes <- abs(myprediction-the_answers)
-  accuracy <- (length(myprediction)-sum(mistakes))/length(myprediction)
-  return(accuracy)
-}
 
 # calculate accuracy rate of my_tree_five
 my_trainprediction <- predict(my_tree_five, train, type = "class")
@@ -191,25 +226,8 @@ my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainpredicti
 calc.accuracy(my_scoredtrain$Survived, as.numeric.factor(my_scoredtrain$Score))
 # [1] 0.8395062
 
-# create helper function to random sample rows from a dataframe
-randomRows = function(df,n){
-  return(df[sample(nrow(df),n),])
-}
 
-# Now improve the function to calculate the accuracy rate on bootstrap samples from train
-calc.bootstrap.accuracy <- function(myfile,m,n){
-  # myfile should have first column with your prediction and second column with the answer key
-  # pull m bootstrap samples of size n
-  list.of.results <- vector(mode = "numeric", length = m)
-  for (i in 1:m){
-    y <- randomRows(myfile,n)
-    list.of.results[i] <- calc.accuracy(y[,1], y[,2])
-  }
-  print(paste("Iteration results ",list.of.results))
-  bootstrap_accuracy <- mean(list.of.results)
-  print(paste("The bootstrap accuracy (mean) is ", bootstrap_accuracy))
-  return(bootstrap_accuracy)
-}
+
 
 # calculate bootstrap accuracy rate of my_tree_five
 my_trainprediction <- predict(my_tree_five, train, type = "class")
