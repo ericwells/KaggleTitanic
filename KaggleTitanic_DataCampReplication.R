@@ -6,6 +6,9 @@
 # my_tree_three: DT, Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked, control = rpart.control(minsplit = 50, cp = 0)
 # my_tree_four: DT, Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size
 # my_tree_five: DT including my new variable "Deck"
+# my_tree_six: my_tree_five, with cp=0 and minbucket=5.
+# my_tree_eight: my_tree_five, with cp=0 and minbucket=30.
+# my_tree_eight: my_tree_eight with Title added back in.
 
 # Utilities **************
 
@@ -41,6 +44,8 @@ randomRows = function(df,n){
 
 # end Utilities ***************
 
+# Import Data ****************
+
 # Import the training set: train
 train_url <- "http://s3.amazonaws.com/assets.datacamp.com/course/Kaggle/train.csv"
 train <- read.csv(train_url, header = TRUE)
@@ -55,6 +60,8 @@ test
 
 str(train)
 str(test)
+
+# end Import Data ****************
 
 # Data Exploration ***************
 
@@ -94,7 +101,7 @@ test_one$Survived[test_one$Sex=="female"] <- 1
 
 # end Variable Generation ***************
 
-# Load in the R package
+# Load in the R package for decision trees
 library("rpart")
 
 # Build the decision tree
@@ -123,7 +130,7 @@ my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_predicti
 nrow(my_solution)
 write.csv(my_solution, file = "my_solution.csv", row.names = FALSE)
 
-# make the tree bigger
+# make the tree bigger by relaxing the complexity parameter
 my_tree_three <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,data = train, method = "class", control = rpart.control(minsplit = 50, cp = 0))
 
 # Visualize my_tree_three
@@ -139,6 +146,7 @@ my_tree_four <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Emb
 # Visualize your new decision tree
 fancyRpartPlot(my_tree_four)
 
+# More Variable Generation ****************
 
 test$Survived <- NA
 # drop the Child column before merging train and test
@@ -179,6 +187,8 @@ all_data$Age[is.na(all_data$Age)] <- predict(predicted_age, all_data[is.na(all_d
 train <- all_data[1:891,]
 test <- all_data[892:1309,]
 
+# end More Variable Generation ****************
+
 set.seed(111) 
 
 # Apply the Random Forest Algorithm
@@ -210,8 +220,6 @@ my_prediction <- predict(my_tree_five, test, type = "class")
 my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_prediction)
 write.csv(my_solution, file = "my_solution.csv", row.names = FALSE)
 
-
-
 # calculate accuracy rate of my_tree_five
 my_trainprediction <- predict(my_tree_five, train, type = "class")
 my_testprediction <- predict(my_tree_five, test, type = "class")
@@ -225,9 +233,6 @@ my_testprediction <- predict(my_tree_four, test, type = "class")
 my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainprediction)
 calc.accuracy(my_scoredtrain$Survived, as.numeric.factor(my_scoredtrain$Score))
 # [1] 0.8395062
-
-
-
 
 # calculate bootstrap accuracy rate of my_tree_five
 my_trainprediction <- predict(my_tree_five, train, type = "class")
@@ -249,3 +254,91 @@ my_testprediction <- predict(my_forest, test, type = "class")
 my_scoredtrain <- data.frame(Score = as.numeric.factor(my_trainprediction), Survived = as.numeric(train$Survived))
 calc.bootstrap.accuracy(my_scoredtrain,10,300)
 # [1] 0.9386667 Crap!  I thought for sure this performance would be lower.  I guess though that if it is accurate on train then it is accurate on subsets of train...
+
+# my_tree_six. Same as my_tree_five but changing the control parameters.
+my_tree_six <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size + Deck, data = train, method = "class",control = rpart.control(cp = 0, minbucket=5))
+fancyRpartPlot(my_tree_six)
+my_prediction <- predict(my_tree_six, test, type = "class")
+my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_prediction)
+write.csv(my_solution, file = "my_solution.csv", row.names = FALSE) # Kaggle performance = 0.75598
+# calculate accuracy rate of my_tree_six
+my_trainprediction <- predict(my_tree_six, train, type = "class")
+my_testprediction <- predict(my_tree_six, test, type = "class")
+my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainprediction)
+calc.accuracy(my_scoredtrain$Survived, as.numeric.factor(my_scoredtrain$Score)) # accuracy on train = 0.8810325
+# calculate bootstrap accuracy rate of my_tree_six
+my_trainprediction <- predict(my_tree_six, train, type = "class")
+my_testprediction <- predict(my_tree_six, test, type = "class")
+my_scoredtrain <- data.frame(Score = as.numeric.factor(my_trainprediction), Survived = as.numeric(train$Survived))
+calc.bootstrap.accuracy(my_scoredtrain,10,300) # bootstrap accuracy on train = 0.8793333
+
+# my_tree_seven. Same as my_tree_six but changing the control parameters to be more chunky.
+my_tree_seven <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size + Deck, data = train, method = "class",control = rpart.control(cp = 0, minbucket=30))
+fancyRpartPlot(my_tree_seven)
+my_prediction <- predict(my_tree_seven, test, type = "class")
+my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_prediction)
+write.csv(my_solution, file = "my_solution.csv", row.names = FALSE) # Kaggle performance = 0.77990
+# calculate accuracy rate of my_tree_seven
+my_trainprediction <- predict(my_tree_seven, train, type = "class")
+my_testprediction <- predict(my_tree_seven, test, type = "class")
+my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainprediction)
+calc.accuracy(my_scoredtrain$Survived, as.numeric.factor(my_scoredtrain$Score)) # accuracy on train = 0.8170595
+# calculate bootstrap accuracy rate of my_tree_seven
+my_trainprediction <- predict(my_tree_seven, train, type = "class")
+my_testprediction <- predict(my_tree_seven, test, type = "class")
+my_scoredtrain <- data.frame(Score = as.numeric.factor(my_trainprediction), Survived = as.numeric(train$Survived))
+calc.bootstrap.accuracy(my_scoredtrain,10,300) # bootstrap accuracy on train = 0.814
+
+# my_tree_eight: my_tree_seven with Title added back in.
+my_tree_eight <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size + Deck + Title, data = train, method = "class",control = rpart.control(cp = 0, minbucket=20))
+fancyRpartPlot(my_tree_eight)
+my_prediction <- predict(my_tree_eight, test, type = "class")
+my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_prediction)
+write.csv(my_solution, file = "my_solution.csv", row.names = FALSE) # Kaggle performance = 0.76555
+# calculate accuracy rate of my_tree_eight
+my_trainprediction <- predict(my_tree_eight, train, type = "class")
+my_testprediction <- predict(my_tree_eight, test, type = "class")
+my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainprediction)
+calc.accuracy(my_scoredtrain$Survived, as.numeric.factor(my_scoredtrain$Score)) # accuracy on train = 0.8428732
+# calculate bootstrap accuracy rate of my_tree_eight
+my_trainprediction <- predict(my_tree_eight, train, type = "class")
+my_testprediction <- predict(my_tree_eight, test, type = "class")
+my_scoredtrain <- data.frame(Score = as.numeric.factor(my_trainprediction), Survived = as.numeric(train$Survived))
+calc.bootstrap.accuracy(my_scoredtrain,10,300) # bootstrap accuracy on train = 0.849
+
+# rerunning DT4 to see if that was the one that got .80383 in Kaggle perf...
+my_tree_four <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size, data = train_two, method = "class")
+fancyRpartPlot(my_tree_four)
+my_prediction <- predict(my_tree_four, test, type = "class")
+my_solution <- data.frame(PassengerId = test$PassengerId, Survived = my_prediction)
+write.csv(my_solution, file = "my_solution.csv", row.names = FALSE) # Kaggle performance = 0.78469
+# calculate accuracy rate of my_tree_four
+my_trainprediction <- predict(my_tree_four, train, type = "class")
+my_testprediction <- predict(my_tree_four, test, type = "class")
+my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainprediction)
+calc.accuracy(my_scoredtrain$Survived, as.numeric.factor(my_scoredtrain$Score)) # accuracy on train = 0.8395062
+# calculate bootstrap accuracy rate of my_tree_four
+my_trainprediction <- predict(my_tree_four, train, type = "class")
+my_testprediction <- predict(my_tree_four, test, type = "class")
+my_scoredtrain <- data.frame(Score = as.numeric.factor(my_trainprediction), Survived = as.numeric(train$Survived))
+calc.bootstrap.accuracy(my_scoredtrain,10,300) # bootstrap accuracy on train = 0.8436667
+
+# OK, now moving on to experiment with logistic regression. ********************
+
+# first trying to get a logistic regression with glm function.
+my_logit_one <- glm(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + family_size + Deck + Title, data=train, family = "binomial")
+summary(my_logit_one)
+my_trainprediction <- predict(my_logit_one, train, type = "response")
+my_testprediction <- predict(my_logit_one, test, type = "response")
+my_scoredtrain <- data.frame(Survived = train$Survived, Score = my_trainprediction)
+my_scoredtrain$Score <- round(my_scoredtrain$Score)
+calc.accuracy(my_scoredtrain$Survived, as.integer(my_scoredtrain$Score)) # accuracy on train = 0.8406285
+my_solution <- data.frame(PassengerId = test$PassengerId, Survived = as.integer(round(my_testprediction)))
+write.csv(my_solution, file = "my_solution.csv", row.names = FALSE) # Kaggle performance = 0.77512
+
+# end Logistic Regression section. ***********************
+
+# cool little helper re missing values
+install.packages("Amelia")
+library('Amelia')
+missmap(train, main = "Missing values vs observed")
